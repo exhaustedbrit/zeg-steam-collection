@@ -88,13 +88,13 @@ const app = () => {
         let str = '';
 
         for (var key in game) {
-            if (str!='') str+=',';
+            if (str!='') str+='\t';
             str += game[key];
         }
         if (tsv == '') {
             let tempStr= '';
             for (var key in game) {
-                if (tempStr!='') tempStr+=',';
+                if (tempStr!='') tempStr+='\t';
                 tempStr += key;
             }
             tsv = tempStr;
