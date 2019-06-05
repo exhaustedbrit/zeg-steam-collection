@@ -79,3 +79,5 @@ typings/
 steam-data.tar.gz
 steam-data/*
 .DS_Store
+images.nosync/*
+steamstore.tsv

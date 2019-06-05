@@ -81,11 +81,19 @@ const app = () => {
     console.log(`Processing steam store data...`);
     const games = state.data;
     let tsv = '';
+    const images = [];
     for (var ind in games) {
         if (!games[ind].success) continue;
         const game = processGame(games[ind]);
+
+        game.localimage = `${game.id}.jpg`;
         
         let str = '';
+
+        images.push({
+            name: game.localimage,
+            url: game.image
+        });
 
         for (var key in game) {
             if (str!='') str+='\t';
@@ -108,7 +116,44 @@ const app = () => {
     }
     console.log(`Steam store TSV export available at ${wd}/steamstore.tsv`);
     });
+    console.log(`Downloading images...`);
+    downloadImages(images);
 };
+
+const downloadImages = (images) => {
+    let index = 0;
+    const processQueue = () => {
+        if (index >= images.length) {
+            console.log(`Images successfully downloaded`);
+            return;
+        }
+        const image = images[index];
+        index++;
+        var dest = `${wd}/images.nosync/${image.name}`;
+        if (fs.existsSync(dest)) processQueue();
+        var file = fs.createWriteStream(dest);
+        var request = http.get(image.url, function(response) {
+            response.pipe(file);
+            file.on('finish', function() {
+                console.log(`Image ${index} of ${images.length} downloaded successfully.`);
+                file.close(() => {
+                    processQueue();
+                });
+            });
+        }).on('error', function(err) {
+            fs.unlink(dest);
+            console.log(` ! Image ${index} of ${images.length} failed to download.`);
+            processQueue();
+        });
+    };
+    // Check if images directory exists, if not create it then process.
+    fs.exists(`${wd}/images.nosync/`, (exists) => {
+        if (!exists) {
+            fs.mkdirSync(`${wd}/images.nosync/`);
+        }
+        processQueue();
+    });
+}
 
 const processGame = (game) => {
     const data = game.data;
