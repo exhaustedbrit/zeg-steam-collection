@@ -1,0 +1,15 @@
+{
+  "name": "zeg-steam-collection",
+  "version": "1.0.0",
+  "description": "Generate a Zegami collection for browsing the Steam Store",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Matthew Hall",
+  "license": "ISC",
+  "dependencies": {
+    "targz": "^1.0.1"
+  }
+}
