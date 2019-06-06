@@ -82,13 +82,15 @@ const app = () => {
     const games = state.data;
     let tsv = '';
     const images = [];
+    let index = 0;
     for (var ind in games) {
-        if (!games[ind].success) continue;
+        if (!games[ind].success || games[ind].data.type != 'game') continue;
         const game = processGame(games[ind]);
 
         game.localimage = `${game.id}.jpg`;
         
         let str = '';
+        index++;
 
         images.push({
             name: game.localimage,
@@ -97,8 +99,9 @@ const app = () => {
 
         for (var key in game) {
             if (str!='') str+='\t';
-            str += game[key];
+            str += sanitize(`${game[key]}`);
         }
+        console.log(`Parsed ${index} of ${games.length} titles.`);
         if (tsv == '') {
             let tempStr= '';
             for (var key in game) {
@@ -107,7 +110,7 @@ const app = () => {
             }
             tsv = tempStr;
         }
-        tsv += '\r\n' + str;
+        tsv += '\n' + str;
     }
     console.log(`Outputting steam store as TSV file...`);
     fs.writeFile(`${wd}/steamstore.tsv`, tsv, function (err) {
@@ -117,7 +120,7 @@ const app = () => {
     console.log(`Steam store TSV export available at ${wd}/steamstore.tsv`);
     });
     console.log(`Downloading images...`);
-    downloadImages(images);
+    // downloadImages(images);
 };
 
 const downloadImages = (images) => {
@@ -141,9 +144,17 @@ const downloadImages = (images) => {
                 });
             });
         }).on('error', function(err) {
-            fs.unlink(dest);
             console.log(` ! Image ${index} of ${images.length} failed to download.`);
-            processQueue();
+            if (err.code == 'ENOTFOUND') {
+                console.log('Server returned 404');
+                
+            } else {
+                console.log('Unknown error occurred');
+            }
+            return;
+        });
+        file.on('error', (err) => {
+            fs.unlink(dest);
         });
     };
     // Check if images directory exists, if not create it then process.
@@ -153,6 +164,23 @@ const downloadImages = (images) => {
         }
         processQueue();
     });
+}
+
+const sanitize = (str) => {
+    if (!str) return '';
+    while (str.indexOf('\r')>=0) {
+        str = str.replace('\r','');
+    }
+    while (str.indexOf('\n')>=0) {
+        str = str.replace('\n','');
+    }
+    while (str.indexOf('\t')>=0) {
+        str = str.replace('\t',' ');
+    }
+    while (str.indexOf('<strong>*</strong>')>=0) {
+        str = str.replace('<strong>*</strong>','');
+    }
+    return str;
 }
 
 const processGame = (game) => {
@@ -167,18 +195,27 @@ const processGame = (game) => {
         }
         return str;
     }
+    const joinDeep = (arr, key) => {
+        let str = '';
+        for (var i in arr) {
+            const val = arr[i][key];
+            if (str!='') str+=',';
+            str+=val;
+        }
+        return str;
+    }
     return {
-        name: game['query_appname'],
+        name: sanitize(game['query_appname']),
         id: game['query_appid'],
         // about: data['about_the_game'] ? data['about_the_game'] : '',
         image: data['header_image'],
         isFree: data['is_free'],
         metacritic: data['metacritic'] ? data['metacritic']['score'] : '',
         developers: data['developers'] ? data['developers'].join(',') : '',
-        genres: data['genres'] ? data['genres'].join(',') : '',
+        genres: data['genres'] ? joinDeep(data['genres'],'description') : '',
         platforms: truekeyStr(data['platforms']),
         releasedate: data['release_date'] ? data['release_date']['date'] : 'TBD',
-        languages: data['supported_languages'],
+        languages: sanitize(data['supported_languages']),
         type: data['type'],
         price: data['price_overview'] ? data['price_overview']['final'] / 100 : 'TBD',
     };
